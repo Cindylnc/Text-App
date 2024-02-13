@@ -21,7 +21,7 @@ def confirmation():
 
     keys = []
     data = []
-    results = []
+ 
 
     # print(csv_data)
     csv_data = csv_data.replace("\r", "")
@@ -41,28 +41,23 @@ def confirmation():
                 dictiona[key] = values [key_index]
                 key_index = key_index + 1
             data.append(dictiona)
-    print(data)
+    #print(data)
  
 
     for each_message in data:
-            #print (each_message)
-            resp = requests.post("https://textbelt.com/text", {
-                "phone": each_message["phone"],
-                "message": message.format(**each_message),
-                "key": text_belt_apikey,
-                "replyWebhookUrl": "https://0ee1-204-113-19-48.ngrok-free.app/reply"
-            })
-            confirmation = resp.json()
-            print (confirmation)
+        #print (each_message)
+        resp = requests.post("https://textbelt.com/text", {
+            "phone": each_message["phone"],
+            "message": message.format(**each_message),
+            "key": text_belt_apikey,
+            "replyWebhookUrl": "https://0ee1-204-113-19-48.ngrok-free.app/reply"
+        })
+        confirmation = resp.json()
+        #print (confirmation)
+        textId = confirmation.get("textId")
+        conversation[textId] = []
+        conversation [textId].append({"from": "sender","text": message.format(**each_message)})
 
-            textId = confirmation.get("textId")
-            conversation[textId] = []
-            conversation [textId].append({"from": "sender","text": message.format(**each_message)})
-
-            with open ("conversation.json", "w") as file:
-                json.dump(conversation, file, indent=4)
-
-            
 
     service = build("sheets", "v4")
     spreadsheets = service.spreadsheets()
@@ -70,23 +65,31 @@ def confirmation():
     new_sheet_response = new_sheet_request.execute()
     spreadsheet_id = new_sheet_response["spreadsheetId"]
 
-            ##Adjust this and add headings:
+    
     values = [
-        [textId,"","",
-        "from: system","","",
-        "text:",message.format(**each_message),""],
+        ["Text ID", "Phone Number", "Message"],
     ]
+    ##loop to append conversation messages to values list
+    for text_id, messages in conversation.items():
+        for message in messages:
+            values.append([text_id, each_message["phone"], message["text"]])
+
 
     body = {
         "values": values
     }
 
-    new_sheet_response = new_sheet_request.execute()
-            
-    service.close() 
+    result = spreadsheets.values().append(
+        spreadsheetId=spreadsheet_id,
+        range="Sheet1",  # Update with your sheet name or range
+        valueInputOption="RAW",
+        body=body
+    ).execute()
+    
+    service.close()
 
 
-    return render_template("confirmation.html", results = results)
+    return render_template("confirmation.html")
 
 
 
